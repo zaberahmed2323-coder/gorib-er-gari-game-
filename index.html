@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gorib er gari game - Dynamic Difficulty</title>
+    <title>Gorib er gari game - City Style</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: linear-gradient(to bottom, #4da6ff, #cce6ff);
+            background: linear-gradient(to bottom, #70a1ff, #e1f5fe);
             font-family: Arial, sans-serif;
             user-select: none;
         }
@@ -25,7 +25,7 @@
             position: absolute;
             top: 20px;
             right: 25px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             color: #ffff00;
             padding: 10px 20px;
             font-size: 22px;
@@ -40,7 +40,7 @@
             position: absolute;
             top: 20px;
             right: 25px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             color: #00ff00;
             padding: 10px 20px;
             font-size: 24px;
@@ -290,113 +290,123 @@
         let difficulty = 'normal';
         let gameActive = false;
 
-        // Score & Record & Progressive Difficulty
         let currentScore = 0;
         let highScore = localStorage.getItem('gorib_gari_highscore') || 0;
         let gameStartTime = 0;
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xaed8f2);
-        scene.fog = new THREE.FogExp2(0xaed8f2, 0.002);
+        scene.background = new THREE.Color(0x87ceeb); // Bright daylight sky
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.0015);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
         scene.add(ambientLight);
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
-        sunLight.position.set(50, 100, 50);
+        const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+        sunLight.position.set(80, 150, 50);
         scene.add(sunLight);
 
         const trackLength = 10000;
 
-        const roadGeometry = new THREE.PlaneGeometry(12, trackLength + 2000);
-        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7 });
+        // --- NYC Style Asphalt Road ---
+        const roadGeometry = new THREE.PlaneGeometry(14, trackLength + 2000);
+        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
         const road = new THREE.Mesh(roadGeometry, roadMaterial);
         road.rotation.x = -Math.PI / 2;
         road.position.z = -trackLength / 2;
         scene.add(road);
 
-        const groundGeo = new THREE.PlaneGeometry(1200, trackLength + 2000);
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x3b8a2b, roughness: 0.9 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.05;
-        ground.position.z = -trackLength / 2;
-        scene.add(ground);
+        // --- Concrete Sidewalks ---
+        const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.9 });
+        const leftSidewalk = new THREE.Mesh(new THREE.PlaneGeometry(4, trackLength + 2000), sidewalkMat);
+        leftSidewalk.rotation.x = -Math.PI / 2;
+        leftSidewalk.position.set(-9, 0.02, -trackLength / 2);
+        scene.add(leftSidewalk);
 
+        const rightSidewalk = new THREE.Mesh(new THREE.PlaneGeometry(4, trackLength + 2000), sidewalkMat);
+        rightSidewalk.rotation.x = -Math.PI / 2;
+        rightSidewalk.position.set(9, 0.02, -trackLength / 2);
+        scene.add(rightSidewalk);
+
+        // --- Road Dividers & Crosswalks ---
         const roadLines = [];
-        for (let i = 0; i > -trackLength; i -= 10) {
-            const line = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-            line.position.set(0, 0.02, i);
+        for (let i = 0; i > -trackLength; i -= 12) {
+            const line = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.03, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            line.position.set(0, 0.04, i);
             scene.add(line);
             roadLines.push(line);
         }
 
-        // Skyscrapers
+        // Crosswalk stripes at intervals
+        for (let i = -50; i > -trackLength; i -= 400) {
+            for(let x = -5; x <= 5; x += 2.5) {
+                const crossLine = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                crossLine.rotation.x = -Math.PI / 2;
+                crossLine.position.set(x, 0.05, i);
+                scene.add(crossLine);
+            }
+        }
+
+        // --- New York Brick Skyscrapers & Storefronts ---
         const buildings = [];
         function createCityBuildings() {
-            const buildingColors = [0x7f8c8d, 0x95a5a6, 0xbdc3c7, 0x34495e, 0x2c3e50, 0xd5dbdb, 0x566573];
-            for (let z = 10; z > -trackLength; z -= 35) {
-                let heightL = 25 + Math.random() * 55;
-                let widthL = 12 + Math.random() * 12;
-                let bMatL = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
-                let bMeshL = new THREE.Mesh(new THREE.BoxGeometry(widthL, heightL, 25), bMatL);
-                bMeshL.position.set(-15 - widthL/2, heightL/2, z);
+            const brickColors = [0x8b3a2b, 0xa0522d, 0x693527, 0x5c4033, 0x4a4a4a, 0x704241];
+            for (let z = 10; z > -trackLength; z -= 40) {
+                // Left Skyscrapers
+                let heightL = 35 + Math.random() * 60;
+                let widthL = 14 + Math.random() * 10;
+                let bMatL = new THREE.MeshStandardMaterial({ color: brickColors[Math.floor(Math.random() * brickColors.length)], roughness: 0.7 });
+                let bMeshL = new THREE.Mesh(new THREE.BoxGeometry(widthL, heightL, 30), bMatL);
+                bMeshL.position.set(-18 - widthL/2, heightL/2, z);
                 scene.add(bMeshL);
                 buildings.push(bMeshL);
 
-                let heightR = 25 + Math.random() * 55;
-                let widthR = 12 + Math.random() * 12;
-                let bMatR = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
-                let bMeshR = new THREE.Mesh(new THREE.BoxGeometry(widthR, heightR, 25), bMatR);
-                bMeshR.position.set(15 + widthR/2, heightR/2, z);
+                // Right Skyscrapers
+                let heightR = 35 + Math.random() * 60;
+                let widthR = 14 + Math.random() * 10;
+                let bMatR = new THREE.MeshStandardMaterial({ color: brickColors[Math.floor(Math.random() * brickColors.length)], roughness: 0.7 });
+                let bMeshR = new THREE.Mesh(new THREE.BoxGeometry(widthR, heightR, 30), bMatR);
+                bMeshR.position.set(18 + widthR/2, heightR/2, z);
                 scene.add(bMeshR);
                 buildings.push(bMeshR);
             }
         }
         createCityBuildings();
 
-        function createMountain(x, z, scaleX, scaleY) {
-            const mtnGeo = new THREE.ConeGeometry(scaleX, scaleY, 5);
-            const mtnMat = new THREE.MeshStandardMaterial({ color: 0x4a7c59, roughness: 0.9 });
-            const mountain = new THREE.Mesh(mtnGeo, mtnMat);
-            mountain.position.set(x, scaleY / 2 - 5, z);
-            mountain.scale.set(1, 1, 0.5);
-            scene.add(mountain);
-        }
-
-        for (let z = 0; z > -trackLength; z -= 300) {
-            createMountain(-200 - Math.random() * 50, z, 100 + Math.random() * 40, 160 + Math.random() * 60);
-            createMountain(200 + Math.random() * 50, z - 150, 110 + Math.random() * 50, 170 + Math.random() * 70);
-        }
-
-        function createCar(color) {
+        // --- NYC Yellow Taxi Cab Model (Like Image) ---
+        function createTaxiCar() {
             const car = new THREE.Group();
-            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.15, metalness: 0.85 });
+            const yellowBodyMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.15, metalness: 0.85 }); // NYC Yellow
             const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05, metalness: 0.9 });
             const blackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
             const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
 
-            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 4.2), bodyMat);
+            // Main Body
+            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 4.2), yellowBodyMat);
             mainBody.position.y = 0.45;
             car.add(mainBody);
 
+            // Cabin / Windows
             const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.55, 2.1), glassMat);
             cabin.position.set(0, 0.85, 0.2);
             car.add(cabin);
 
-            const bonnet = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 1.4), bodyMat);
+            // Bonnet
+            const bonnet = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.25, 1.4), yellowBodyMat);
             bonnet.position.set(0, 0.55, -1.35);
             bonnet.rotation.x = -0.15;
             car.add(bonnet);
 
-            const wing = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.5), bodyMat);
-            wing.position.set(0, 1.0, 1.9);
-            car.add(wing);
+            // Taxi Sign on Roof
+            const taxiSign = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.18, 0.35), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            taxiSign.position.set(0, 1.22, 0.1);
+            car.add(taxiSign);
 
+            // Fire / Explosion mesh when crashed
             const fireMesh = new THREE.Mesh(
                 new THREE.SphereGeometry(1.4, 8, 8), 
                 new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.0 })
@@ -427,7 +437,7 @@
             return car;
         }
 
-        const playerCar = createCar(0xffcc00);
+        const playerCar = createTaxiCar();
         playerCar.position.set(0, 0, 0);
         scene.add(playerCar);
 
@@ -435,11 +445,10 @@
 
         function setupRaceMode() {
             aiCars = [];
-            const aiColors = [0x33cc33, 0x3333ff, 0xff3333, 0x9933ff, 0x00ffff, 0xff00ff, 0xffff66, 0x66ff66, 0xff9999];
             let baseSpeed = difficulty === 'hard' ? 0.95 : (difficulty === 'normal' ? 0.82 : 0.70);
 
             for (let i = 0; i < 9; i++) {
-                const ai = createCar(aiColors[i]);
+                const ai = createTaxiCar();
                 const laneX = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 4 + 0.5);
                 const zPos = -10 - (i * 8) - Math.random() * 5;
                 ai.position.set(laneX, 0, zPos);
@@ -450,11 +459,9 @@
 
         function setupFreeMode() {
             aiCars = [];
-            const enemyColors = [0x33cc33, 0x3333ff, 0xff3333, 0x9933ff, 0xff00ff, 0x00ffff];
-            // Start with fewer cars, density will increase over time
             let initialCarCount = 5;
             for (let i = 0; i < initialCarCount; i++) {
-                const enemy = createCar(enemyColors[i % enemyColors.length]);
+                const enemy = createTaxiCar();
                 enemy.position.set((Math.random() > 0.5 ? 1 : -1) * (Math.random() * 3 + 0.5), 0, -50 - (i * 35));
                 scene.add(enemy);
                 aiCars.push({ mesh: enemy, speed: 0.32, isCrashed: false, crashTimer: 0, originalSpeed: 0.32 });
@@ -490,7 +497,6 @@
             document.getElementById('ui').style.display = 'block';
             document.getElementById('highScoreVal').innerText = highScore;
 
-            // Clear old AI cars from scene if any
             aiCars.forEach(c => scene.remove(c.mesh));
 
             if (mode === 'free' || mode === 'phone') {
@@ -584,7 +590,6 @@
             document.getElementById('scoreboard').style.display = 'block';
         }
 
-        // Timer for dynamic traffic addition
         let lastTrafficSpawnTime = 0;
 
         function animate() {
@@ -596,28 +601,22 @@
             }
 
             let elapsedTimeInSeconds = (Date.now() - gameStartTime) / 1000;
-
-            // Progressive Difficulty Scaling: Speed and difficulty increases over time
-            let difficultyMultiplier = 1 + (elapsedTimeInSeconds / 60) * 0.25; // increases by 25% every minute
+            let difficultyMultiplier = 1 + (elapsedTimeInSeconds / 60) * 0.25;
             let dynamicMaxSpeed = maxSpeed * difficultyMultiplier;
 
-            // Score calculation: 1000 score per minute
             if (gameMode === 'free' || gameMode === 'phone') {
                 currentScore += (1000 / 60) * (carSpeed / maxSpeed);
                 document.getElementById('scoreVal').innerText = Math.floor(currentScore);
 
-                // Progressive Traffic Density: Add more cars every 15 seconds (up to 14 cars max)
                 if (Date.now() - lastTrafficSpawnTime > 15000 && aiCars.length < 14) {
                     lastTrafficSpawnTime = Date.now();
-                    const enemyColors = [0xff3333, 0x33ff33, 0x3333ff, 0xff00ff, 0xffff00, 0x00ffff];
-                    const enemy = createCar(enemyColors[Math.floor(Math.random() * enemyColors.length)]);
+                    const enemy = createTaxiCar();
                     enemy.position.set((Math.random() > 0.5 ? 1 : -1) * (Math.random() * 3 + 0.5), 0, playerCar.position.z - 120 - Math.random() * 50);
                     scene.add(enemy);
                     aiCars.push({ mesh: enemy, speed: 0.32 * difficultyMultiplier, isCrashed: false, crashTimer: 0, originalSpeed: 0.32 * difficultyMultiplier });
                 }
             }
 
-            // Controls with W/S or Phone GO/Brake
             if (keys['ArrowUp'] || keys['w'] || keys['W'] || phoneStates.speed) {
                 carSpeed = Math.min(carSpeed + 0.02, dynamicMaxSpeed);
             } else if (keys['ArrowDown'] || keys['s'] || keys['S'] || phoneStates.brake) {
@@ -637,7 +636,7 @@
 
             updateEngineSound(carSpeed);
 
-            let roadWidthLimit = 4.8;
+            let roadWidthLimit = 5.2;
             if (playerCar.position.x < -roadWidthLimit) playerCar.position.x = -roadWidthLimit;
             if (playerCar.position.x > roadWidthLimit) playerCar.position.x = roadWidthLimit;
 
@@ -659,9 +658,9 @@
                 standings.sort((a, b) => a.z - b.z);
                 document.getElementById('posNum').innerText = standings.findIndex(item => item.name === 'Player') + 1;
             } else if (gameMode === 'phone') {
-                document.getElementById('info').innerText = `Phone Touch Version (Speed: ${(difficultyMultiplier*100).toFixed(0)}%)`;
+                document.getElementById('info').innerText = `Phone Touch Version (NYC City Mode)`;
             } else {
-                document.getElementById('info').innerText = `Free Mode Driving (Speed: ${(difficultyMultiplier*100).toFixed(0)}%)`;
+                document.getElementById('info').innerText = `Free Mode Driving (NYC City Mode)`;
             }
 
             let targetX = playerCar.position.x;
@@ -673,7 +672,6 @@
             camera.position.z = targetZ + Math.cos(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
             camera.lookAt(targetX, targetY, targetZ);
 
-            // Collisions & AI Handling with progressive speed
             aiCars.forEach((ai) => {
                 if (!ai.finished) {
                     if (!ai.isCrashed) {
@@ -693,8 +691,8 @@
                     if (gameMode === 'race' && !ai.isCrashed && Math.abs(ai.mesh.position.z - playerCar.position.z) < 120) {
                         let trackingFactor = difficulty === 'hard' ? 0.015 : (difficulty === 'normal' ? 0.01 : 0.005);
                         ai.mesh.position.x += (playerCar.position.x - ai.mesh.position.x) * trackingFactor;
-                        if (ai.mesh.position.x < -4.8) ai.mesh.position.x = -4.8;
-                        if (ai.mesh.position.x > 4.8) ai.mesh.position.x = 4.8;
+                        if (ai.mesh.position.x < -5.2) ai.mesh.position.x = -5.2;
+                        if (ai.mesh.position.x > 5.2) ai.mesh.position.x = 5.2;
                     }
 
                     if (gameMode === 'race' && Math.abs(ai.mesh.position.z) >= trackLength) {
@@ -709,7 +707,6 @@
                     if (ai.mesh.userData.fireMesh) ai.mesh.userData.fireMesh.material.opacity = 0.0;
                 }
 
-                // COLLISION DETECTED
                 if (playerCar.position.distanceTo(ai.mesh.position) < 2.2) {
                     if (gameMode === 'free' || gameMode === 'phone') {
                         playerCar.userData.fireMesh.material.opacity = 0.9;
