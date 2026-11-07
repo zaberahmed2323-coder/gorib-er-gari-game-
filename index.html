@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gorib er gari game</title>
+    <title>Gorib er gari game - Score System</title>
     <style>
         body {
             margin: 0;
@@ -20,6 +20,21 @@
             font-size: 20px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
             display: none;
+        }
+        #score-hud {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #ffff00;
+            padding: 10px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 8px;
+            border: 2px solid #ffff00;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            display: none;
+            z-index: 5;
         }
         #position-hud {
             position: absolute;
@@ -163,6 +178,7 @@
 
     <!-- HUD / UI during game -->
     <div id="ui">Use W/S to Drive | Mouse Drag = 360° Camera | <span id="info"></span></div>
+    <div id="score-hud">Score: <span id="scoreVal">0</span> | Best: <span id="highScoreVal">0</span></div>
     <div id="position-hud">Position: <span id="posNum">1</span>/10</div>
 
     <!-- Phone Version Touch Controls -->
@@ -274,6 +290,11 @@
         let difficulty = 'normal';
         let gameActive = false;
 
+        // Score & Record Management
+        let currentScore = 0;
+        let highScore = localStorage.getItem('gorib_gari_highscore') || 0;
+        let gameTimer = 0;
+
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xaed8f2);
         scene.fog = new THREE.FogExp2(0xaed8f2, 0.002);
@@ -314,12 +335,11 @@
             roadLines.push(line);
         }
 
-        // --- Boro Boro Buildings (Skyscrapers) ---
+        // Skyscrapers
         const buildings = [];
         function createCityBuildings() {
             const buildingColors = [0x7f8c8d, 0x95a5a6, 0xbdc3c7, 0x34495e, 0x2c3e50, 0xd5dbdb, 0x566573];
             for (let z = 10; z > -trackLength; z -= 35) {
-                // Left side tall buildings
                 let heightL = 25 + Math.random() * 55;
                 let widthL = 12 + Math.random() * 12;
                 let bMatL = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
@@ -328,7 +348,6 @@
                 scene.add(bMeshL);
                 buildings.push(bMeshL);
 
-                // Right side tall buildings
                 let heightR = 25 + Math.random() * 55;
                 let widthR = 12 + Math.random() * 12;
                 let bMatR = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
@@ -461,21 +480,26 @@
             startBGM();
 
             gameMode = mode;
+            currentScore = 0;
+            gameTimer = Date.now();
+
             document.getElementById('menu').style.display = 'none';
             document.getElementById('difficulty-menu').style.display = 'none';
             document.getElementById('ui').style.display = 'block';
+            document.getElementById('highScoreVal').innerText = highScore;
 
-            if (mode === 'phone') {
-                document.getElementById('phone-controls').style.display = 'flex';
+            if (mode === 'free' || mode === 'phone') {
+                document.getElementById('score-hud').style.display = 'block';
+                document.getElementById('position-hud').style.display = 'none';
+                if (mode === 'phone') {
+                    document.getElementById('phone-controls').style.display = 'flex';
+                }
                 setupFreeMode();
             } else if (mode === 'race') {
+                document.getElementById('score-hud').style.display = 'none';
                 document.getElementById('phone-controls').style.display = 'none';
                 document.getElementById('position-hud').style.display = 'block';
                 setupRaceMode();
-            } else {
-                // Free Mode
-                document.getElementById('phone-controls').style.display = 'none';
-                setupFreeMode();
             }
             gameActive = true;
         }
@@ -535,9 +559,23 @@
             gameActive = false;
             document.getElementById('phone-controls').style.display = 'none';
             document.getElementById('position-hud').style.display = 'none';
+            document.getElementById('score-hud').style.display = 'none';
+
+            let finalScore = Math.floor(currentScore);
+            let congratsText = "";
+
+            if (gameMode === 'free' || gameMode === 'phone') {
+                if (finalScore > highScore) {
+                    highScore = finalScore;
+                    localStorage.setItem('gorib_gari_highscore', highScore);
+                    congratsText = `<br><span style="color: #00ff00; font-size: 28px;">🎉 Congratulations! New Record: ${highScore} points! 🎉</span>`;
+                } else {
+                    congratsText = `<br>Score: <b>${finalScore}</b> | Best Record: <b>${highScore}</b>`;
+                }
+            }
 
             document.getElementById('scoreTitle').innerText = "GAME OVER!";
-            document.getElementById('rankResult').innerHTML = `<b>${reason}</b>`;
+            document.getElementById('rankResult').innerHTML = `<b>${reason}</b>${congratsText}`;
             document.getElementById('scoreboard').style.display = 'block';
         }
 
@@ -549,18 +587,26 @@
                 return;
             }
 
-            // Controls with W/S or Phone GO/Brake (S/Brake stops and reverses car)
+            // Score calculation: 1000 score per minute (approx 16.66 score per second / delta time)
+            if (gameMode === 'free' || gameMode === 'phone') {
+                if (carSpeed > 0) {
+                    currentScore += (1000 / 60) * (carSpeed / maxSpeed); // Score increases based on movement & time
+                    document.getElementById('scoreVal').innerText = Math.floor(currentScore);
+                }
+            }
+
+            // Controls with W/S or Phone GO/Brake
             if (keys['ArrowUp'] || keys['w'] || keys['W'] || phoneStates.speed) {
                 carSpeed = Math.min(carSpeed + 0.02, maxSpeed);
             } else if (keys['ArrowDown'] || keys['s'] || keys['S'] || phoneStates.brake) {
                 if (carSpeed > 0) {
-                    carSpeed -= 0.04; // Brake to stop
+                    carSpeed -= 0.04;
                     if (carSpeed < 0) carSpeed = 0;
                 } else {
-                    carSpeed = Math.max(carSpeed - 0.02, maxReverseSpeed); // Reverse backward
+                    carSpeed = Math.max(carSpeed - 0.02, maxReverseSpeed);
                 }
             } else {
-                carSpeed *= 0.94; // Natural slow down when no key is pressed
+                carSpeed *= 0.94;
             }
 
             let steeringSpeed = 0.18;
@@ -644,13 +690,11 @@
                 // COLLISION DETECTED
                 if (playerCar.position.distanceTo(ai.mesh.position) < 2.2) {
                     if (gameMode === 'free' || gameMode === 'phone') {
-                        // Free Mode & Phone Touch Mode: BOTH CARS ON FIRE + BURST SOUND + GAME OVER
                         playerCar.userData.fireMesh.material.opacity = 0.9;
                         ai.mesh.userData.fireMesh.material.opacity = 0.9;
                         playBlastSound();
                         triggerGameOverScreen("Cars Crashed & Exploded!");
                     } else if (gameMode === 'race') {
-                        // Race Mode: Temporary crash slowdown
                         if (!ai.isCrashed) {
                             ai.isCrashed = true;
                             ai.crashTimer = 60;
