@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gorib er gari game - Phone Version</title>
+    <title>Gorib er gari game</title>
     <style>
         body {
             margin: 0;
@@ -37,7 +36,6 @@
             display: none;
             z-index: 5;
         }
-        /* Phone Version Dedicated Touch Controls */
         #phone-controls {
             position: absolute;
             bottom: 25px;
@@ -181,7 +179,7 @@
 
     <!-- Scoreboard / Finish Screen -->
     <div id="scoreboard">
-        <h2 style="color: #00ff00; font-size: 35px;">Race Finished!</h2>
+        <h2 id="scoreTitle" style="color: #ff3333; font-size: 35px;">Game Over!</h2>
         <p id="rankResult" style="font-size: 24px; margin: 20px 0;"></p>
         <button class="btn" onclick="location.reload()">Play Again</button>
     </div>
@@ -230,20 +228,23 @@
             }
         }
 
-        function playCrashSound() {
+        // Heavy Burst / Explosion Sound Effect
+        function playBlastSound() {
             if (!audioCtx) return;
             try {
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.5);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.8);
+
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.5);
+                osc.stop(audioCtx.currentTime + 0.8);
             } catch(e) {}
         }
 
@@ -393,7 +394,11 @@
             wing.position.set(0, 1.0, 1.9);
             car.add(wing);
 
-            const fireMesh = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.0 }));
+            // Flame Mesh for Explosion Effect
+            const fireMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(1.4, 8, 8), 
+                new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.0 })
+            );
             fireMesh.position.set(0, 1.0, 0);
             car.add(fireMesh);
             car.userData.fireMesh = fireMesh;
@@ -443,8 +448,9 @@
 
         function setupFreeMode() {
             aiCars = [];
+            const enemyColors = [0x33cc33, 0x3333ff, 0xff3333, 0x9933ff];
             for (let i = 0; i < 6; i++) {
-                const enemy = createCar(0x3333ff);
+                const enemy = createCar(enemyColors[i % enemyColors.length]);
                 enemy.position.set((Math.random() > 0.5 ? 1 : -1) * (Math.random() * 3 + 0.5), 0, -60 - (i * 40));
                 scene.add(enemy);
                 aiCars.push({ mesh: enemy, speed: 0.35, isCrashed: false, crashTimer: 0, originalSpeed: 0.35 });
@@ -493,7 +499,7 @@
             gameActive = true;
         }
 
-        // --- Phone Touch Controls Handling ---
+        // Touch Controls
         const phoneStates = { left: false, right: false, speed: false };
 
         function bindPhoneButton(id, stateKey) {
@@ -507,7 +513,7 @@
         bindPhoneButton('pRight', 'right');
         bindPhoneButton('pSpeed', 'speed');
 
-        // --- Forza Horizon Style 360° Mouse Camera Controls ---
+        // Camera Controls
         let isMouseDown = false;
         let mouseX = 0, mouseY = 0;
         let cameraAngleX = 0;
@@ -534,7 +540,6 @@
             cameraAngleY = Math.max(0.05, Math.min(1.2, cameraAngleY + deltaY * 0.008));
         });
 
-        // Keyboard Controls
         const keys = {};
         window.addEventListener('keydown', (e) => keys[e.key] = true);
         window.addEventListener('keyup', (e) => keys[e.key] = false);
@@ -542,6 +547,16 @@
         let carSpeed = 0;
         let maxSpeed = 1.1;
         let raceFinished = false;
+
+        function triggerGameOverScreen(reason) {
+            gameActive = false;
+            document.getElementById('phone-controls').style.display = 'none';
+            document.getElementById('position-hud').style.display = 'none';
+
+            document.getElementById('scoreTitle').innerText = "GAME OVER!";
+            document.getElementById('rankResult').innerHTML = `<b>${reason}</b>`;
+            document.getElementById('scoreboard').style.display = 'block';
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -551,11 +566,11 @@
                 return;
             }
 
-            // Speed control: press to accelerate, release to stop/slow down
+            // Controls
             if (keys['ArrowUp'] || keys['w'] || keys['W'] || phoneStates.speed) {
                 carSpeed = Math.min(carSpeed + 0.02, maxSpeed);
             } else {
-                carSpeed *= 0.92; // Chere dile gari off/themey jabe
+                carSpeed *= 0.92;
             }
 
             let steeringSpeed = 0.18;
@@ -600,6 +615,7 @@
             camera.position.z = targetZ + Math.cos(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
             camera.lookAt(targetX, targetY, targetZ);
 
+            // Collisions & AI Handling
             aiCars.forEach((ai) => {
                 if (!ai.finished) {
                     if (!ai.isCrashed) {
@@ -608,12 +624,7 @@
                         ai.crashTimer--;
                         ai.speed = 0;
                         if (ai.mesh.userData.fireMesh) {
-                            ai.mesh.userData.fireMesh.material.opacity = 0.5 + Math.sin(Date.now() * 0.02) * 0.4;
-                        }
-                        if (ai.crashTimer <= 0) {
-                            ai.isCrashed = false;
-                            ai.speed = ai.originalSpeed;
-                            if (ai.mesh.userData.fireMesh) ai.mesh.userData.fireMesh.material.opacity = 0.0;
+                            ai.mesh.userData.fireMesh.material.opacity = 0.7 + Math.sin(Date.now() * 0.03) * 0.3;
                         }
                     }
 
@@ -640,12 +651,22 @@
                     if (ai.mesh.userData.fireMesh) ai.mesh.userData.fireMesh.material.opacity = 0.0;
                 }
 
+                // COLLISION DETECTED
                 if (playerCar.position.distanceTo(ai.mesh.position) < 2.2) {
-                    if (!ai.isCrashed) {
-                        ai.isCrashed = true;
-                        ai.crashTimer = 60;
-                        playCrashSound();
-                        carSpeed *= 0.4;
+                    if (gameMode === 'free' || gameMode === 'phone') {
+                        // Free Mode & Phone Mode Rules: BOTH CARS ON FIRE + BURST SOUND + GAME OVER
+                        playerCar.userData.fireMesh.material.opacity = 0.9;
+                        ai.mesh.userData.fireMesh.material.opacity = 0.9;
+                        playBlastSound();
+                        triggerGameOverScreen("Cars Crashed & Exploded!");
+                    } else if (gameMode === 'race') {
+                        // Race Mode Rules: Temporary crash slowdown
+                        if (!ai.isCrashed) {
+                            ai.isCrashed = true;
+                            ai.crashTimer = 60;
+                            playBlastSound();
+                            carSpeed *= 0.4;
+                        }
                     }
                 }
             });
@@ -670,6 +691,7 @@
                     else if (playerRank === 2) rankSuffix = "nd";
                     else if (playerRank === 3) rankSuffix = "rd";
 
+                    document.getElementById('scoreTitle').innerText = "Race Finished!";
                     document.getElementById('rankResult').innerHTML = `You finished as: <b>${playerRank}${rankSuffix}</b> out of 10 Cars!`;
                     document.getElementById('scoreboard').style.display = 'block';
                 }
