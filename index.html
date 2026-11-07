@@ -374,42 +374,37 @@
         }
         createCityBuildings();
 
-        // --- BMW M3 GTR E46 Detailed Model Creator ---
+        // --- BMW M3 GTR E46 Creator with Flexible Steerable Front Wheels ---
         function createBMW_M3_GTR(isPlayer, customColor) {
             const car = new THREE.Group();
             
-            // Base colors (Player gets the iconic M3 GTR Silver & Blue livery; opponents get their distinct colors)
-            let primaryColor = isPlayer ? 0xd0d0d0 : customColor; // Silver body for player
-            let secondaryColor = isPlayer ? 0x003366 : customColor; // Deep Blue for M3 GTR hood & fenders
+            let primaryColor = isPlayer ? 0xd0d0d0 : customColor;
+            let secondaryColor = isPlayer ? 0x003366 : customColor;
 
             const bodyMat = new THREE.MeshStandardMaterial({ color: primaryColor, roughness: 0.15, metalness: 0.85 });
             const accentMat = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.15, metalness: 0.85 });
             const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05, metalness: 0.95 });
             const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
             const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
-            const headlightGlow = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Halo blue glowing ring look
+            const headlightGlow = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
             // Main Body Chassis
             const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 4.3), bodyMat);
             mainBody.position.y = 0.45;
             car.add(mainBody);
 
-            // Iconic M3 GTR Blue Center Hood Section (if player or styled)
             const hoodAccent = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.02, 1.6), accentMat);
             hoodAccent.position.set(0, 0.71, -1.0);
             car.add(hoodAccent);
 
-            // Cabin / Roof
             const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.52, 2.1), glassMat);
             cabin.position.set(0, 0.82, 0.15);
             car.add(cabin);
 
-            // Front Bumper & Twin Kidney Grille
             const frontBumper = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.35, 0.8), bodyMat);
             frontBumper.position.set(0, 0.35, -2.0);
             car.add(frontBumper);
 
-            // Headlights with Halo Blue Glow effect
             const leftHeadlight = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), headlightGlow);
             leftHeadlight.position.set(-0.65, 0.45, -2.02);
             car.add(leftHeadlight);
@@ -418,7 +413,6 @@
             rightHeadlight.position.set(0.65, 0.45, -2.02);
             car.add(rightHeadlight);
 
-            // Large Rear Wing (Most Wanted Style Spoiler)
             const wingPillarL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.1), darkMat);
             wingPillarL.position.set(-0.7, 0.75, 1.95);
             car.add(wingPillarL);
@@ -431,7 +425,6 @@
             rearWing.position.set(0, 0.88, 1.95);
             car.add(rearWing);
 
-            // Fire / Explosion mesh when crashed
             const fireMesh = new THREE.Mesh(
                 new THREE.SphereGeometry(1.4, 8, 8), 
                 new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.0 })
@@ -440,12 +433,14 @@
             car.add(fireMesh);
             car.userData.fireMesh = fireMesh;
 
-            // Wheels
+            // Wheels setup
             car.userData.wheels = [];
+            car.userData.frontWheels = []; // For flexible turning rotation
             const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.35, 16);
             const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
 
-            [[-1.05, 0.38, -1.3], [1.05, 0.38, -1.3], [-1.05, 0.38, 1.3], [1.05, 0.38, 1.3]].forEach(pos => {
+            // Rear wheels (fixed rotation)
+            [[-1.05, 0.38, 1.3], [1.05, 0.38, 1.3]].forEach(pos => {
                 const wheelGroup = new THREE.Group();
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
                 wheel.rotation.z = Math.PI / 2;
@@ -460,27 +455,38 @@
                 car.userData.wheels.push(wheelGroup);
             });
 
+            // Front wheels (flexible steering rotation)
+            [[-1.05, 0.38, -1.3], [1.05, 0.38, -1.3]].forEach(pos => {
+                const steerGroup = new THREE.Group(); // Handles turning angle (y-axis)
+                steerGroup.position.set(pos[0], pos[1], pos[2]);
+                
+                const wheelGroup = new THREE.Group(); // Handles rolling spin (x-axis)
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheelGroup.add(wheel);
+
+                const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.37, 8), rimMat);
+                rim.rotation.z = Math.PI / 2;
+                wheelGroup.add(rim);
+
+                steerGroup.add(wheelGroup);
+                car.add(steerGroup);
+
+                car.userData.wheels.push(wheelGroup);
+                car.userData.frontWheels.push(steerGroup);
+            });
+
             return car;
         }
 
-        // --- Player Car (BMW M3 GTR E46 Iconic Look) ---
         const playerCar = createBMW_M3_GTR(true, 0x003366);
         playerCar.position.set(0, 0, 0);
         scene.add(playerCar);
 
         let aiCars = [];
-        // 10 Distinct Supercar Colors for Opponents
         const opponentColors = [
-            0xff0000, // Red
-            0x33cc33, // Green
-            0xff9900, // Orange
-            0x9933ff, // Purple
-            0x00ffff, // Cyan
-            0xff00ff, // Magenta
-            0xffff00, // Yellow
-            0xff6666, // Pink
-            0x00ff88, // Mint
-            0x111111  // Black
+            0xff0000, 0x33cc33, 0xff9900, 0x9933ff, 0x00ffff, 
+            0xff00ff, 0xffff00, 0xff6666, 0x00ff88, 0x111111
         ];
 
         function setupRaceMode() {
@@ -671,8 +677,22 @@
             }
 
             let steeringSpeed = 0.18;
-            if (keys['ArrowLeft'] || keys['a'] || keys['A'] || phoneStates.left) playerCar.position.x -= steeringSpeed;
-            if (keys['ArrowRight'] || keys['d'] || keys['D'] || phoneStates.right) playerCar.position.x += steeringSpeed;
+            let isTurningLeft = keys['ArrowLeft'] || keys['a'] || keys['A'] || phoneStates.left;
+            let isTurningRight = keys['ArrowRight'] || keys['d'] || keys['D'] || phoneStates.right;
+
+            if (isTurningLeft) playerCar.position.x -= steeringSpeed;
+            if (isTurningRight) playerCar.position.x += steeringSpeed;
+
+            // --- Flexible Front Wheels Steering Animation ---
+            let targetSteerAngle = 0;
+            if (isTurningLeft) targetSteerAngle = 0.45; // Turn left angle
+            else if (isTurningRight) targetSteerAngle = -0.45; // Turn right angle
+
+            if (playerCar.userData.frontWheels) {
+                playerCar.userData.frontWheels.forEach(fw => {
+                    fw.rotation.y += (targetSteerAngle - fw.rotation.y) * 0.2; // Smooth flexible transition
+                });
+            }
 
             updateEngineSound(carSpeed);
 
@@ -698,9 +718,9 @@
                 standings.sort((a, b) => a.z - b.z);
                 document.getElementById('posNum').innerText = standings.findIndex(item => item.name === 'Player') + 1;
             } else if (gameMode === 'phone') {
-                document.getElementById('info').innerText = `Phone Touch Version (BMW M3 GTR Style)`;
+                document.getElementById('info').innerText = `Phone Touch Version (Flexible Wheels)`;
             } else {
-                document.getElementById('info').innerText = `Free Mode Driving (BMW M3 GTR Style)`;
+                document.getElementById('info').innerText = `Free Mode Driving (Flexible Wheels)`;
             }
 
             let targetX = playerCar.position.x;
