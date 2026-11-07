@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gorib er gari game - Lamborghini Style</title>
+    <title>Gorib er gari game - BMW M3 GTR Style</title>
     <style>
         body {
             margin: 0;
@@ -374,39 +374,62 @@
         }
         createCityBuildings();
 
-        // --- Lamborghini / Supercar Detailed Model ---
-        function createLamborghiniCar(colorHex) {
+        // --- BMW M3 GTR E46 Detailed Model Creator ---
+        function createBMW_M3_GTR(isPlayer, customColor) {
             const car = new THREE.Group();
-            const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.12, metalness: 0.9 });
-            const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05, metalness: 0.95 });
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
-            const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+            
+            // Base colors (Player gets the iconic M3 GTR Silver & Blue livery; opponents get their distinct colors)
+            let primaryColor = isPlayer ? 0xd0d0d0 : customColor; // Silver body for player
+            let secondaryColor = isPlayer ? 0x003366 : customColor; // Deep Blue for M3 GTR hood & fenders
 
-            // Low-slung sharp wedge body (Lamborghini style)
-            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.42, 4.4), bodyMat);
-            mainBody.position.y = 0.38;
+            const bodyMat = new THREE.MeshStandardMaterial({ color: primaryColor, roughness: 0.15, metalness: 0.85 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.15, metalness: 0.85 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.05, metalness: 0.95 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+            const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+            const headlightGlow = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Halo blue glowing ring look
+
+            // Main Body Chassis
+            const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 4.3), bodyMat);
+            mainBody.position.y = 0.45;
             car.add(mainBody);
 
-            // Angled aggressive cockpit/cabin
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 1.9), glassMat);
-            cabin.position.set(0, 0.72, 0.15);
-            cabin.rotation.x = -0.1;
+            // Iconic M3 GTR Blue Center Hood Section (if player or styled)
+            const hoodAccent = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.02, 1.6), accentMat);
+            hoodAccent.position.set(0, 0.71, -1.0);
+            car.add(hoodAccent);
+
+            // Cabin / Roof
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.52, 2.1), glassMat);
+            cabin.position.set(0, 0.82, 0.15);
             car.add(cabin);
 
-            // Sloped aggressive front hood
-            const frontHood = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.22, 1.5), bodyMat);
-            frontHood.position.set(0, 0.48, -1.45);
-            frontHood.rotation.x = -0.28;
-            car.add(frontHood);
+            // Front Bumper & Twin Kidney Grille
+            const frontBumper = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.35, 0.8), bodyMat);
+            frontBumper.position.set(0, 0.35, -2.0);
+            car.add(frontBumper);
 
-            // Rear spoiler/wing
-            const spoilerPillars = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.18, 0.1), darkMat);
-            spoilerPillars.position.set(0, 0.65, 2.0);
-            car.add(spoilerPillars);
+            // Headlights with Halo Blue Glow effect
+            const leftHeadlight = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), headlightGlow);
+            leftHeadlight.position.set(-0.65, 0.45, -2.02);
+            car.add(leftHeadlight);
 
-            const spoilerWing = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.45), bodyMat);
-            spoilerWing.position.set(0, 0.75, 2.0);
-            car.add(spoilerWing);
+            const rightHeadlight = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.1), headlightGlow);
+            rightHeadlight.position.set(0.65, 0.45, -2.02);
+            car.add(rightHeadlight);
+
+            // Large Rear Wing (Most Wanted Style Spoiler)
+            const wingPillarL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.1), darkMat);
+            wingPillarL.position.set(-0.7, 0.75, 1.95);
+            car.add(wingPillarL);
+
+            const wingPillarR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.1), darkMat);
+            wingPillarR.position.set(0.7, 0.75, 1.95);
+            car.add(wingPillarR);
+
+            const rearWing = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.45), accentMat);
+            rearWing.position.set(0, 0.88, 1.95);
+            car.add(rearWing);
 
             // Fire / Explosion mesh when crashed
             const fireMesh = new THREE.Mesh(
@@ -440,16 +463,16 @@
             return car;
         }
 
-        // --- Player Car (Bright Red Lamborghini) ---
-        const playerCar = createLamborghiniCar(0xff0000); // Red color for user car
+        // --- Player Car (BMW M3 GTR E46 Iconic Look) ---
+        const playerCar = createBMW_M3_GTR(true, 0x003366);
         playerCar.position.set(0, 0, 0);
         scene.add(playerCar);
 
         let aiCars = [];
-        // 10 Distinct Supercar Colors for 10 Cars
-        const supercarColors = [
+        // 10 Distinct Supercar Colors for Opponents
+        const opponentColors = [
+            0xff0000, // Red
             0x33cc33, // Green
-            0x3333ff, // Blue
             0xff9900, // Orange
             0x9933ff, // Purple
             0x00ffff, // Cyan
@@ -457,7 +480,7 @@
             0xffff00, // Yellow
             0xff6666, // Pink
             0x00ff88, // Mint
-            0xffffff  // White
+            0x111111  // Black
         ];
 
         function setupRaceMode() {
@@ -465,7 +488,7 @@
             let baseSpeed = difficulty === 'hard' ? 0.95 : (difficulty === 'normal' ? 0.82 : 0.70);
 
             for (let i = 0; i < 9; i++) {
-                const ai = createLamborghiniCar(supercarColors[i % supercarColors.length]);
+                const ai = createBMW_M3_GTR(false, opponentColors[i % opponentColors.length]);
                 const laneX = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 4 + 0.5);
                 const zPos = -10 - (i * 8) - Math.random() * 5;
                 ai.position.set(laneX, 0, zPos);
@@ -478,7 +501,7 @@
             aiCars = [];
             let initialCarCount = 5;
             for (let i = 0; i < initialCarCount; i++) {
-                const enemy = createLamborghiniCar(supercarColors[i % supercarColors.length]);
+                const enemy = createBMW_M3_GTR(false, opponentColors[i % opponentColors.length]);
                 enemy.position.set((Math.random() > 0.5 ? 1 : -1) * (Math.random() * 3 + 0.5), 0, -50 - (i * 35));
                 scene.add(enemy);
                 aiCars.push({ mesh: enemy, speed: 0.32, isCrashed: false, crashTimer: 0, originalSpeed: 0.32 });
@@ -627,7 +650,7 @@
 
                 if (Date.now() - lastTrafficSpawnTime > 15000 && aiCars.length < 14) {
                     lastTrafficSpawnTime = Date.now();
-                    const enemy = createLamborghiniCar(supercarColors[Math.floor(Math.random() * supercarColors.length)]);
+                    const enemy = createBMW_M3_GTR(false, opponentColors[Math.floor(Math.random() * opponentColors.length)]);
                     enemy.position.set((Math.random() > 0.5 ? 1 : -1) * (Math.random() * 3 + 0.5), 0, playerCar.position.z - 120 - Math.random() * 50);
                     scene.add(enemy);
                     aiCars.push({ mesh: enemy, speed: 0.32 * difficultyMultiplier, isCrashed: false, crashTimer: 0, originalSpeed: 0.32 * difficultyMultiplier });
@@ -675,9 +698,9 @@
                 standings.sort((a, b) => a.z - b.z);
                 document.getElementById('posNum').innerText = standings.findIndex(item => item.name === 'Player') + 1;
             } else if (gameMode === 'phone') {
-                document.getElementById('info').innerText = `Phone Touch Version (Lamborghini Style)`;
+                document.getElementById('info').innerText = `Phone Touch Version (BMW M3 GTR Style)`;
             } else {
-                document.getElementById('info').innerText = `Free Mode Driving (Lamborghini Style)`;
+                document.getElementById('info').innerText = `Free Mode Driving (BMW M3 GTR Style)`;
             }
 
             let targetX = playerCar.position.x;
