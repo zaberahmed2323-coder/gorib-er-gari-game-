@@ -162,7 +162,7 @@
     </div>
 
     <!-- HUD / UI during game -->
-    <div id="ui">Use Up/W to Drive | Mouse Drag = 360° Camera | <span id="info"></span></div>
+    <div id="ui">Use W/S to Drive | Mouse Drag = 360° Camera | <span id="info"></span></div>
     <div id="position-hud">Position: <span id="posNum">1</span>/10</div>
 
     <!-- Phone Version Touch Controls -->
@@ -171,8 +171,9 @@
             <button class="phone-btn" id="pLeft">◀</button>
             <button class="phone-btn" id="pRight">▶</button>
         </div>
-        <div class="touch-group">
-            <button class="phone-btn" id="pSpeed" style="background: rgba(0, 200, 0, 0.5);">GO</button>
+        <div class="touch-group" style="gap: 10px;">
+            <button class="phone-btn" id="pBrake" style="background: rgba(200, 0, 0, 0.5);">▼</button>
+            <button class="phone-btn" id="pSpeed" style="background: rgba(0, 200, 0, 0.5);">▲</button>
         </div>
     </div>
 
@@ -313,6 +314,32 @@
             roadLines.push(line);
         }
 
+        // --- Boro Boro Buildings (Skyscrapers) ---
+        const buildings = [];
+        function createCityBuildings() {
+            const buildingColors = [0x7f8c8d, 0x95a5a6, 0xbdc3c7, 0x34495e, 0x2c3e50, 0xd5dbdb, 0x566573];
+            for (let z = 10; z > -trackLength; z -= 35) {
+                // Left side tall buildings
+                let heightL = 25 + Math.random() * 55;
+                let widthL = 12 + Math.random() * 12;
+                let bMatL = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
+                let bMeshL = new THREE.Mesh(new THREE.BoxGeometry(widthL, heightL, 25), bMatL);
+                bMeshL.position.set(-15 - widthL/2, heightL/2, z);
+                scene.add(bMeshL);
+                buildings.push(bMeshL);
+
+                // Right side tall buildings
+                let heightR = 25 + Math.random() * 55;
+                let widthR = 12 + Math.random() * 12;
+                let bMatR = new THREE.MeshStandardMaterial({ color: buildingColors[Math.floor(Math.random() * buildingColors.length)], roughness: 0.6 });
+                let bMeshR = new THREE.Mesh(new THREE.BoxGeometry(widthR, heightR, 25), bMatR);
+                bMeshR.position.set(15 + widthR/2, heightR/2, z);
+                scene.add(bMeshR);
+                buildings.push(bMeshR);
+            }
+        }
+        createCityBuildings();
+
         function createMountain(x, z, scaleX, scaleY) {
             const mtnGeo = new THREE.ConeGeometry(scaleX, scaleY, 5);
             const mtnMat = new THREE.MeshStandardMaterial({ color: 0x4a7c59, roughness: 0.9 });
@@ -323,26 +350,8 @@
         }
 
         for (let z = 0; z > -trackLength; z -= 300) {
-            createMountain(-150 - Math.random() * 50, z, 100 + Math.random() * 40, 160 + Math.random() * 60);
-            createMountain(150 + Math.random() * 50, z - 150, 110 + Math.random() * 50, 170 + Math.random() * 70);
-        }
-
-        function createRoadsideScenery(x, z) {
-            const treeGroup = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.6, 3, 6), new THREE.MeshStandardMaterial({ color: 0x5c4033 }));
-            trunk.position.y = 1.5;
-            treeGroup.add(trunk);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1e5631 });
-            const s1 = new THREE.Mesh(new THREE.SphereGeometry(1.6, 7, 7), leavesMat);
-            s1.position.y = 3.2;
-            treeGroup.add(s1);
-            treeGroup.position.set(x, 0, z);
-            scene.add(treeGroup);
-        }
-
-        for (let z = 20; z > -trackLength; z -= 35) {
-            createRoadsideScenery(-7.5, z);
-            createRoadsideScenery(7.5, z);
+            createMountain(-200 - Math.random() * 50, z, 100 + Math.random() * 40, 160 + Math.random() * 60);
+            createMountain(200 + Math.random() * 50, z - 150, 110 + Math.random() * 50, 170 + Math.random() * 70);
         }
 
         function createCar(color) {
@@ -472,7 +481,7 @@
         }
 
         // Touch Controls
-        const phoneStates = { left: false, right: false, speed: false };
+        const phoneStates = { left: false, right: false, speed: false, brake: false };
 
         function bindPhoneButton(id, stateKey) {
             const btn = document.getElementById(id);
@@ -484,6 +493,7 @@
         bindPhoneButton('pLeft', 'left');
         bindPhoneButton('pRight', 'right');
         bindPhoneButton('pSpeed', 'speed');
+        bindPhoneButton('pBrake', 'brake');
 
         // Camera Controls
         let isMouseDown = false;
@@ -518,6 +528,7 @@
 
         let carSpeed = 0;
         let maxSpeed = 1.1;
+        let maxReverseSpeed = -0.35;
         let raceFinished = false;
 
         function triggerGameOverScreen(reason) {
@@ -538,11 +549,18 @@
                 return;
             }
 
-            // Controls
+            // Controls with W/S or Phone GO/Brake (S/Brake stops and reverses car)
             if (keys['ArrowUp'] || keys['w'] || keys['W'] || phoneStates.speed) {
                 carSpeed = Math.min(carSpeed + 0.02, maxSpeed);
+            } else if (keys['ArrowDown'] || keys['s'] || keys['S'] || phoneStates.brake) {
+                if (carSpeed > 0) {
+                    carSpeed -= 0.04; // Brake to stop
+                    if (carSpeed < 0) carSpeed = 0;
+                } else {
+                    carSpeed = Math.max(carSpeed - 0.02, maxReverseSpeed); // Reverse backward
+                }
             } else {
-                carSpeed *= 0.92;
+                carSpeed *= 0.94; // Natural slow down when no key is pressed
             }
 
             let steeringSpeed = 0.18;
